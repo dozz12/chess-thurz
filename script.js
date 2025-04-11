@@ -2,7 +2,7 @@ const boardElement = document.getElementById("chessboard");
 const statusElement = document.getElementById("status");
 const levelSelect = document.getElementById("level-select");
 
-const game = new Chess();
+const game = new window.Chess();
 let selected = null;
 let engine = STOCKFISH();
 let aiLevel = parseInt(levelSelect.value);
