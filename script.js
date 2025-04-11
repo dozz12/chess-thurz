@@ -1,110 +1,118 @@
-const boardElement = document.getElementById("chessboard");
-const statusElement = document.getElementById("status");
-const levelSelect = document.getElementById("level-select");
+document.addEventListener('DOMContentLoaded', () => {
+    const board = document.getElementById('board');
+    const status = document.getElementById('status');
+    const resetButton = document.getElementById('reset');
+    let game = new Chess();
+    let draggedPiece = null;
 
-const game = new window.Chess();
-let selected = null;
-let engine = STOCKFISH();
-let aiLevel = parseInt(levelSelect.value);
+    // Initialize the board
+    function createBoard() {
+        for (let i = 0; i < 64; i++) {
+            const square = document.createElement('div');
+            square.classList.add('square');
+            square.classList.add((i + Math.floor(i / 8)) % 2 === 0 ? 'light' : 'dark');
+            square.dataset.index = i;
+            square.addEventListener('dragover', dragOver);
+            square.addEventListener('drop', drop);
+            board.appendChild(square);
+        }
+        renderBoard();
+    }
 
-levelSelect.addEventListener("change", () => {
-  aiLevel = parseInt(levelSelect.value);
+    // Render the current state of the board
+    function renderBoard() {
+        const pieces = game.board();
+        const squares = document.querySelectorAll('.square');
+        squares.forEach(square => square.innerHTML = '');
+
+        pieces.forEach((row, i) => {
+            row.forEach((piece, j) => {
+                if (piece) {
+                    const squareIndex = (7 - i) * 8 + j;
+                    const square = document.querySelector(`.square[data-index="${squareIndex}"]`);
+                    const pieceElement = document.createElement('div');
+                    pieceElement.classList.add('piece');
+                    pieceElement.draggable = game.turn() === 'w'; // Only white (player) can move
+                    pieceElement.textContent = getPieceSymbol(piece);
+                    pieceElement.addEventListener('dragstart', dragStart);
+                    square.appendChild(pieceElement);
+                }
+            });
+        });
+
+        status.textContent = `Turn: ${game.turn() === 'w' ? 'White' : 'Black (AI)'}`;
+        if (game.in_checkmate()) {
+            status.textContent = `Checkmate! ${game.turn() === 'w' ? 'Black' : 'White'} wins!`;
+        } else if (game.in_draw()) {
+            status.textContent = 'Draw!';
+        } else if (game.in_stalemate()) {
+            status.textContent = 'Stalemate!';
+        } else if (game.in_check()) {
+            status.textContent += ' - Check!';
+        }
+    }
+
+    // Get Unicode symbol for piece
+    function getPieceSymbol(piece) {
+        const symbols = {
+            'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
+            'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♘'
+        };
+        return symbols[piece.color + piece.type] || '';
+    }
+
+    // Drag and drop functions
+    function dragStart(e) {
+        draggedPiece = e.target;
+    }
+
+    function dragOver(e) {
+        e.preventDefault();
+    }
+
+    function drop(e) {
+        e.preventDefault();
+        const fromSquare = Array.from(document.querySelectorAll('.piece')).indexOf(draggedPiece);
+        const toSquare = e.target.closest('.square').dataset.index;
+
+        const move = {
+            from: chessIndexToAlgebraic(fromSquare),
+            to: chessIndexToAlgebraic(toSquare),
+            promotion: 'q' // Always promote to queen for simplicity
+        };
+
+        if (game.move(move)) {
+            renderBoard();
+            setTimeout(aiMove, 500); // AI moves after player
+        } else {
+            alert('Invalid move!');
+        }
+        draggedPiece = null;
+    }
+
+    // Convert board index to algebraic notation (e.g., 0 -> 'a8')
+    function chessIndexToAlgebraic(index) {
+        const files = 'abcdefgh';
+        const rank = 8 - Math.floor(index / 8);
+        const file = files[index % 8];
+        return file + rank;
+    }
+
+    // Simple AI: Random legal move
+    function aiMove() {
+        const moves = game.moves();
+        if (moves.length > 0) {
+            const randomMove = moves[Math.floor(Math.random() * moves.length)];
+            game.move(randomMove);
+            renderBoard();
+        }
+    }
+
+    // Reset game
+    resetButton.addEventListener('click', () => {
+        game.reset();
+        renderBoard();
+    });
+
+    createBoard();
 });
-
-function renderBoard() {
-  boardElement.innerHTML = "";
-  const board = game.board();
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const square = document.createElement("div");
-      const isLight = (row + col) % 2 === 0;
-      square.className = "square " + (isLight ? "light" : "dark");
-
-      const piece = board[row][col];
-      if (piece) {
-        square.textContent = getPieceUnicode(piece.type, piece.color);
-      }
-
-      const file = "abcdefgh"[col];
-      const rank = 8 - row;
-      const squareId = file + rank;
-      square.dataset.square = squareId;
-
-      if (selected === squareId) {
-        square.classList.add("selected");
-      }
-
-      square.addEventListener("click", handleClick);
-      boardElement.appendChild(square);
-    }
-  }
-  updateStatus();
-}
-
-function getPieceUnicode(type, color) {
-  const codes = { p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚" };
-  let symbol = codes[type];
-  return color === "w" ? symbol.replace("♟", "♙")
-                              .replace("♜", "♖")
-                              .replace("♞", "♘")
-                              .replace("♝", "♗")
-                              .replace("♛", "♕")
-                              .replace("♚", "♔") : symbol;
-}
-
-function handleClick(e) {
-  if (game.game_over()) return;
-
-  const square = e.currentTarget.dataset.square;
-  if (selected) {
-    const move = game.move({ from: selected, to: square, promotion: "q" });
-    selected = null;
-    if (move) {
-      renderBoard();
-      if (!game.game_over()) {
-        setTimeout(makeAIMove, 200);
-      }
-    } else {
-      renderBoard();
-    }
-  } else {
-    selected = square;
-    renderBoard();
-  }
-}
-
-function makeAIMove() {
-  engine.postMessage("ucinewgame");
-  engine.postMessage("isready");
-  engine.postMessage("position fen " + game.fen());
-  engine.postMessage("go depth " + aiLevel);
-
-  engine.onmessage = (event) => {
-    const line = event.data;
-    if (line.startsWith("bestmove")) {
-      const move = line.split(" ")[1];
-      game.move({
-        from: move.substring(0, 2),
-        to: move.substring(2, 4),
-        promotion: "q"
-      });
-      renderBoard();
-    }
-  };
-}
-
-function updateStatus() {
-  if (game.in_checkmate()) {
-    statusElement.textContent = game.turn() === "w"
-      ? "Hitam menang (Skakmat)" : "Putih menang (Skakmat)";
-  } else if (game.in_draw()) {
-    statusElement.textContent = "Permainan Seri";
-  } else if (game.in_check()) {
-    statusElement.textContent = (game.turn() === "w" ? "Putih" : "Hitam") + " dalam skak!";
-  } else {
-    statusElement.textContent = game.turn() === "w"
-      ? "Giliran Kamu (Putih)" : "Giliran AI (Hitam)";
-  }
-}
-
-renderBoard();
