@@ -1,27 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Catur vs AI</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThurZ Chess</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Catur vs AI</h1>
-  <div id="controls">
-    Level:
-    <select id="level-select">
-      <option value="4">Mudah</option>
-      <option value="8" selected>Sedang</option>
-      <option value="15">Susah</option>
-    </select>
-  </div>
-  <div id="chessboard"></div>
-  <div id="status" class="status">Giliran Kamu (Putih)</div>
-
-  <!-- ✅ Perbaikan sumber chess.js dan stockfish -->
-  <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.1/dist/chess.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/stockfish/stockfish.js"></script>
-  <script src="script.js"></script>
+    <div id="game-container">
+        <h1>Chess vs AI</h1>
+        <div id="board"></div>
+        <button id="reset">Reset Game</button>
+        <div id="status"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
