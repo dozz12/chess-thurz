@@ -7,15 +7,20 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <h1>Catur vs AI</h1>
+  <div id="controls">
+    Level:
+    <select id="level-select">
+      <option value="4">Mudah</option>
+      <option value="8" selected>Sedang</option>
+      <option value="15">Susah</option>
+    </select>
+  </div>
   <div id="chessboard"></div>
+  <div id="status" class="status">Giliran Kamu (Putih)</div>
 
-  <!-- chess.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
-  <!-- stockfish.js -->
-  <script>
-    window.stockfish = new Worker("https://raw.githubusercontent.com/niklasf/stockfish.js/master/src/stockfish-nnue.wasm.js");
-  </script>
-  <!-- main logic -->
+  <script src="stockfish.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
