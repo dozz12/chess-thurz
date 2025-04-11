@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Catur vs AI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="chessboard"></div>
+
+  <!-- chess.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+  <!-- stockfish.js -->
+  <script>
+    window.stockfish = new Worker("https://raw.githubusercontent.com/niklasf/stockfish.js/master/src/stockfish-nnue.wasm.js");
+  </script>
+  <!-- main logic -->
+  <script src="script.js"></script>
+</body>
+</html>
