@@ -1,13 +1,15 @@
 const boardElement = document.getElementById("chessboard");
+const statusElement = document.getElementById("status");
+const levelSelect = document.getElementById("level-select");
+
 const game = new Chess();
 let selected = null;
-let aiLevel = 8; // Ganti ke 4 (mudah), 8 (sedang), 15 (sulit)
+let engine = STOCKFISH();
+let aiLevel = parseInt(levelSelect.value);
 
-const statusDisplay = document.createElement("div");
-statusDisplay.style.marginTop = "20px";
-statusDisplay.style.fontSize = "20px";
-statusDisplay.style.fontWeight = "bold";
-document.body.appendChild(statusDisplay);
+levelSelect.addEventListener("change", () => {
+  aiLevel = parseInt(levelSelect.value);
+});
 
 function renderBoard() {
   boardElement.innerHTML = "";
@@ -20,16 +22,15 @@ function renderBoard() {
 
       const piece = board[row][col];
       if (piece) {
-        const symbol = piece.type;
-        const color = piece.color;
-        square.textContent = getPieceUnicode(symbol, color);
+        square.textContent = getPieceUnicode(piece.type, piece.color);
       }
 
       const file = "abcdefgh"[col];
       const rank = 8 - row;
-      square.dataset.square = file + rank;
+      const squareId = file + rank;
+      square.dataset.square = squareId;
 
-      if (selected === file + rank) {
+      if (selected === squareId) {
         square.classList.add("selected");
       }
 
@@ -37,23 +38,18 @@ function renderBoard() {
       boardElement.appendChild(square);
     }
   }
-
   updateStatus();
 }
 
 function getPieceUnicode(type, color) {
-  const codes = {
-    p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚"
-  };
-  const piece = codes[type];
-  return color === "w"
-    ? piece.replace("♟", "♙")
-           .replace("♜", "♖")
-           .replace("♞", "♘")
-           .replace("♝", "♗")
-           .replace("♛", "♕")
-           .replace("♚", "♔")
-    : piece;
+  const codes = { p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚" };
+  let symbol = codes[type];
+  return color === "w" ? symbol.replace("♟", "♙")
+                              .replace("♜", "♖")
+                              .replace("♞", "♘")
+                              .replace("♝", "♗")
+                              .replace("♛", "♕")
+                              .replace("♚", "♔") : symbol;
 }
 
 function handleClick(e) {
@@ -66,7 +62,7 @@ function handleClick(e) {
     if (move) {
       renderBoard();
       if (!game.game_over()) {
-        setTimeout(makeAIMove, 300);
+        setTimeout(makeAIMove, 200);
       }
     } else {
       renderBoard();
@@ -78,33 +74,37 @@ function handleClick(e) {
 }
 
 function makeAIMove() {
-  stockfish.postMessage("position fen " + game.fen());
-  stockfish.postMessage("go depth " + aiLevel);
+  engine.postMessage("ucinewgame");
+  engine.postMessage("isready");
+  engine.postMessage("position fen " + game.fen());
+  engine.postMessage("go depth " + aiLevel);
 
-  stockfish.onmessage = function (e) {
-    const line = e.data;
+  engine.onmessage = (event) => {
+    const line = event.data;
     if (line.startsWith("bestmove")) {
       const move = line.split(" ")[1];
-      game.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: "q" });
+      game.move({
+        from: move.substring(0, 2),
+        to: move.substring(2, 4),
+        promotion: "q"
+      });
       renderBoard();
     }
   };
 }
 
 function updateStatus() {
-  let status = "";
-
   if (game.in_checkmate()) {
-    status = game.turn() === "w" ? "Hitam menang (Skakmat)" : "Putih menang (Skakmat)";
+    statusElement.textContent = game.turn() === "w"
+      ? "Hitam menang (Skakmat)" : "Putih menang (Skakmat)";
   } else if (game.in_draw()) {
-    status = "Permainan Seri";
+    statusElement.textContent = "Permainan Seri";
   } else if (game.in_check()) {
-    status = (game.turn() === "w" ? "Putih" : "Hitam") + " dalam skak!";
+    statusElement.textContent = (game.turn() === "w" ? "Putih" : "Hitam") + " dalam skak!";
   } else {
-    status = (game.turn() === "w" ? "Giliran Kamu (Putih)" : "Giliran AI (Hitam)");
+    statusElement.textContent = game.turn() === "w"
+      ? "Giliran Kamu (Putih)" : "Giliran AI (Hitam)";
   }
-
-  statusDisplay.textContent = status;
 }
 
 renderBoard();
