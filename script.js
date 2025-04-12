@@ -1,117 +1,131 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const board = document.getElementById('board');
-    const status = document.getElementById('status');
-    const resetButton = document.getElementById('reset');
-    let game = new Chess();
-    let draggedPiece = null;
+    const chessboard = document.getElementById('chessboard');
+    const gameStatus = document.getElementById('gameStatus');
+    const resetBtn = document.getElementById('resetBtn');
+    let board = [];
+    let selectedPiece = null;
+    let currentTurn = 'white';
+    let gameActive = true;
 
-    // Initialize the board
+    // Initialize board
+    const pieces = {
+        'r': '♖', 'n': '♘', 'b': '♗', 'q': '♕', 'k': '♔', 'p': '♙',
+        'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚', 'P': '♟'
+    };
+
+    const initialBoard = [
+        ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+        ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+        ['.', '.', '.', '.', '.', '.', '.', '.'],
+        ['.', '.', '.', '.', '.', '.', '.', '.'],
+        ['.', '.', '.', '.', '.', '.', '.', '.'],
+        ['.', '.', '.', '.', '.', '.', '.', '.'],
+        ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+        ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+    ];
+
     function createBoard() {
-        for (let i = 0; i < 64; i++) {
-            const square = document.createElement('div');
-            square.classList.add('square');
-            square.classList.add((i + Math.floor(i / 8)) % 2 === 0 ? 'light' : 'dark');
-            square.dataset.index = i;
-            square.addEventListener('dragover', dragOver);
-            square.addEventListener('drop', drop);
-            board.appendChild(square);
-        }
-        renderBoard();
-    }
-
-    // Render the current state of the board
-    function renderBoard() {
-        const pieces = game.board();
-        const squares = document.querySelectorAll('.square');
-        squares.forEach(square => square.innerHTML = '');
-
-        pieces.forEach((row, i) => {
-            row.forEach((piece, j) => {
-                if (piece) {
-                    const squareIndex = (7 - i) * 8 + j;
-                    const square = document.querySelector(`.square[data-index="${squareIndex}"]`);
-                    const pieceElement = document.createElement('div');
-                    pieceElement.classList.add('piece');
-                    pieceElement.draggable = game.turn() === 'w'; // Only white (player) can move
-                    pieceElement.textContent = getPieceSymbol(piece);
-                    pieceElement.addEventListener('dragstart', dragStart);
-                    square.appendChild(pieceElement);
+        board = JSON.parse(JSON.stringify(initialBoard));
+        chessboard.innerHTML = '';
+        for (let i = 0; i < 8; i++) {
+            for (let j = 0; j < 8; j++) {
+                const square = document.createElement('div');
+                square.classList.add('square');
+                square.classList.add((i + j) % 2 === 0 ? 'light' : 'dark');
+                if (board[i][j] !== '.') {
+                    const piece = document.createElement('div');
+                    piece.classList.add('piece');
+                    piece.textContent = pieces[board[i][j]];
+                    square.appendChild(piece);
                 }
-            });
-        });
-
-        status.textContent = `Turn: ${game.turn() === 'w' ? 'White' : 'Black (AI)'}`;
-        if (game.in_checkmate()) {
-            status.textContent = `Checkmate! ${game.turn() === 'w' ? 'Black' : 'White'} wins!`;
-        } else if (game.in_draw()) {
-            status.textContent = 'Draw!';
-        } else if (game.in_stalemate()) {
-            status.textContent = 'Stalemate!';
-        } else if (game.in_check()) {
-            status.textContent += ' - Check!';
+                square.dataset.row = i;
+                square.dataset.col = j;
+                square.addEventListener('click', handleClick);
+                chessboard.appendChild(square);
+            }
         }
+        updateStatus();
     }
 
-    // Get Unicode symbol for piece
-    function getPieceSymbol(piece) {
-        const symbols = {
-            'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
-            'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♘'
-        };
-        return symbols[piece.color + piece.type] || '';
-    }
+    function handleClick(e) {
+        if (!gameActive) return;
 
-    // Drag and drop functions
-    function dragStart(e) {
-        draggedPiece = e.target;
-    }
+        const row = parseInt(e.target.dataset.row);
+        const col = parseInt(e.target.dataset.col);
 
-    function dragOver(e) {
-        e.preventDefault();
-    }
-
-    function drop(e) {
-        e.preventDefault();
-        const fromSquare = Array.from(document.querySelectorAll('.piece')).indexOf(draggedPiece);
-        const toSquare = e.target.closest('.square').dataset.index;
-
-        const move = {
-            from: chessIndexToAlgebraic(fromSquare),
-            to: chessIndexToAlgebraic(toSquare),
-            promotion: 'q' // Always promote to queen for simplicity
-        };
-
-        if (game.move(move)) {
-            renderBoard();
-            setTimeout(aiMove, 500); // AI moves after player
+        if (!selectedPiece) {
+            if (board[row][col] !== '.' && isUpperCase(board[row][col]) === (currentTurn === 'white')) {
+                selectedPiece = { row, col };
+                e.target.classList.add('selected');
+            }
         } else {
-            alert('Invalid move!');
+            if (movePiece(selectedPiece.row, selectedPiece.col, row, col)) {
+                currentTurn = currentTurn === 'white' ? 'black' : 'white';
+                setTimeout(aiMove, 500); // AI makes move after short delay
+            }
+            deselectAll();
+            selectedPiece = null;
+            updateStatus();
         }
-        draggedPiece = null;
     }
 
-    // Convert board index to algebraic notation (e.g., 0 -> 'a8')
-    function chessIndexToAlgebraic(index) {
-        const files = 'abcdefgh';
-        const rank = 8 - Math.floor(index / 8);
-        const file = files[index % 8];
-        return file + rank;
+    function isUpperCase(char) {
+        return char === char.toUpperCase();
     }
 
-    // Simple AI: Random legal move
+    function movePiece(fromRow, fromCol, toRow, toCol) {
+        if (fromRow === toRow && fromCol === toCol) return false;
+
+        const piece = board[fromRow][fromCol];
+        board[toRow][toCol] = piece;
+        board[fromRow][fromCol] = '.';
+        return true;
+    }
+
     function aiMove() {
-        const moves = game.moves();
-        if (moves.length > 0) {
-            const randomMove = moves[Math.floor(Math.random() * moves.length)];
-            game.move(randomMove);
-            renderBoard();
+        if (!gameActive) return;
+
+        let fromRow, fromCol, toRow, toCol;
+        do {
+            fromRow = Math.floor(Math.random() * 8);
+            fromCol = Math.floor(Math.random() * 8);
+            toRow = Math.floor(Math.random() * 8);
+            toCol = Math.floor(Math.random() * 8);
+        } while (board[fromRow][fromCol] === '.' || isUpperCase(board[fromRow][fromCol]));
+
+        movePiece(fromRow, fromCol, toRow, toCol);
+        currentTurn = 'white';
+        updateStatus();
+        checkGameOver();
+    }
+
+    function deselectAll() {
+        document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    }
+
+    function updateStatus() {
+        gameStatus.textContent = `${currentTurn === 'white' ? 'Your' : 'AI\'s'} turn (${currentTurn.charAt(0).toUpperCase() + currentTurn.slice(1)})`;
+    }
+
+    function checkGameOver() {
+        // Simple check for king presence
+        let whiteKing = false, blackKing = false;
+        for (let i = 0; i < 8; i++) {
+            for (let j = 0; j < 8; j++) {
+                if (board[i][j] === 'K') whiteKing = true;
+                if (board[i][j] === 'k') blackKing = true;
+            }
+        }
+        if (!whiteKing || !blackKing) {
+            gameActive = false;
+            gameStatus.textContent = `Game Over! ${whiteKing ? 'Black' : 'White'} wins!`;
         }
     }
 
-    // Reset game
-    resetButton.addEventListener('click', () => {
-        game.reset();
-        renderBoard();
+    resetBtn.addEventListener('click', () => {
+        gameActive = true;
+        currentTurn = 'white';
+        createBoard();
     });
 
     createBoard();
